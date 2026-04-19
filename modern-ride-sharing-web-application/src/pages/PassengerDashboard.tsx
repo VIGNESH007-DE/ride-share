@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp, getDocs, updateDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp, getDocs, updateDoc, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, MapPin, Users, Car, Clock, Navigation, LogOut, Phone } from 'lucide-react';
+import { Search, MapPin, Users, Car, Clock, Navigation, LogOut, Phone, Trash2 } from 'lucide-react';
 import { TAMIL_NADU_DISTRICTS } from '../constants/districts';
 import toast from 'react-hot-toast';
 import { auth } from '../lib/firebase';
@@ -110,6 +110,23 @@ const PassengerDashboard = () => {
       toast.success('Booking cancelled successfully');
     } catch (error: any) {
       toast.error('Failed to cancel booking: ' + error.message);
+    }
+  };
+
+  const handleClearHistory = async () => {
+    if (!userData?.uid) return;
+    try {
+      const q = query(collection(db, 'bookings'), where('passengerId', '==', userData.uid));
+      const snap = await getDocs(q);
+      snap.forEach(async (docSnap) => {
+         const st = docSnap.data().status;
+         if (st === 'cancelled' || st === 'driver_cancelled' || st === 'rejected' || st === 'finished') {
+           await deleteDoc(docSnap.ref);
+         }
+      });
+      toast.success('History cleared successfully');
+    } catch (error: any) {
+      toast.error('Failed to clear history: ' + error.message);
     }
   };
 
@@ -250,10 +267,17 @@ const PassengerDashboard = () => {
 
           {/* My Bookings */}
           <div>
-            <h3 className="text-2xl font-bold mb-6 flex items-center gap-2">
-              <Clock className="text-amber-400" size={24} />
-              Your Bookings
-            </h3>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold flex items-center gap-2">
+                <Clock className="text-amber-400" size={24} />
+                Your Bookings
+              </h3>
+              {myBookings.length > 0 && (
+                <button onClick={handleClearHistory} className="p-2 text-red-500 hover:bg-red-500/10 rounded-full transition-all" title="Clear History">
+                  <Trash2 size={18} />
+                </button>
+              )}
+            </div>
             <div className="space-y-4">
               {myBookings.length === 0 ? (
                 <div className="bg-white/5 border border-white/5 rounded-3xl p-8 text-center text-indigo-300/50">
@@ -271,9 +295,10 @@ const PassengerDashboard = () => {
                       <span className={`text-[10px] uppercase font-black px-2 py-1 rounded-full ${
                         booking.status === 'accepted' ? 'bg-emerald-500/20 text-emerald-400' :
                         booking.status === 'pending' ? 'bg-amber-500/20 text-amber-400' :
+                        booking.status === 'driver_cancelled' ? 'bg-red-500/40 text-red-100' :
                         'bg-red-500/20 text-red-400'
                       }`}>
-                        {booking.status}
+                        {booking.status === 'driver_cancelled' ? 'Driver Cancelled' : booking.status}
                       </span>
                       <div className="flex items-center gap-3">
                         <p className="text-xs text-indigo-300/50">₹{booking.price}</p>

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc, query, where, onSnapshot, updateDoc, doc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, updateDoc, doc, serverTimestamp, getDoc, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Car, MapPin, Navigation, IndianRupee, Users, Check, X, LogOut, Clock } from 'lucide-react';
+import { Plus, Car, MapPin, Navigation, IndianRupee, Users, Check, X, LogOut, Clock, Trash2 } from 'lucide-react';
 import { TAMIL_NADU_DISTRICTS } from '../constants/districts';
 import toast from 'react-hot-toast';
 import { auth } from '../lib/firebase';
@@ -119,11 +119,49 @@ const DriverDashboard = () => {
     setLoading(true);
     try {
       await updateDoc(doc(db, 'rides', rideId), { status });
+      
+      if (status === 'cancelled') {
+         const bQuery = query(collection(db, 'bookings'), where('rideId', '==', rideId));
+         const snap = await getDocs(bQuery);
+         snap.forEach(async (docSnap) => {
+            const data = docSnap.data();
+            if (data.status === 'pending' || data.status === 'accepted') {
+               await updateDoc(docSnap.ref, { status: 'driver_cancelled' });
+            }
+         });
+      }
+
       toast.success(`Ride ${status} successfully!`);
     } catch (error: any) {
       toast.error(`Failed to update ride: ` + error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleClearHistory = async () => {
+    if (!userData?.uid) return;
+    try {
+       const bQuery = query(collection(db, 'bookings'), where('driverId', '==', userData.uid));
+       const bSnap = await getDocs(bQuery);
+       bSnap.forEach(async (d) => {
+          const st = d.data().status;
+          if (st === 'cancelled' || st === 'driver_cancelled' || st === 'rejected' || st === 'finished') {
+             await deleteDoc(d.ref);
+          }
+       });
+       
+       const rQuery = query(collection(db, 'rides'), where('driverId', '==', userData.uid));
+       const rSnap = await getDocs(rQuery);
+       rSnap.forEach(async (d) => {
+          const st = d.data().status;
+          if (st === 'cancelled' || st === 'finished') {
+             await deleteDoc(d.ref);
+          }
+       });
+       toast.success('History cleared successfully');
+    } catch (error: any) {
+       toast.error('Failed to clear history: ' + error.message);
     }
   };
 
@@ -154,13 +192,21 @@ const DriverDashboard = () => {
       <main className="max-w-6xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-2xl font-bold">Manage Your Rides</h2>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20"
-          >
-            {showForm ? <X size={20} /> : <Plus size={20} />}
-            {showForm ? 'Cancel' : 'Create Ride'}
-          </button>
+          <div className="flex gap-4">
+            <button
+              onClick={handleClearHistory}
+              className="bg-red-500/10 hover:bg-red-500/20 text-red-500 px-4 py-2 rounded-full flex items-center gap-2 transition-all font-medium text-sm"
+            >
+              <Trash2 size={18} /> <span className="hidden sm:inline">Clear History</span>
+            </button>
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20"
+            >
+              {showForm ? <X size={20} /> : <Plus size={20} />}
+              {showForm ? 'Cancel' : 'Create Ride'}
+            </button>
+          </div>
         </div>
 
         <AnimatePresence>
