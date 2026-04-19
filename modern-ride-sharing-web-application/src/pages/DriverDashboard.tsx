@@ -38,8 +38,7 @@ const DriverDashboard = () => {
     // Fetch booking requests for this driver's rides
     const requestsQuery = query(
       collection(db, 'bookings'),
-      where('driverId', '==', userData.uid),
-      where('status', '==', 'pending')
+      where('driverId', '==', userData.uid)
     );
 
     const unsubscribeRequests = onSnapshot(requestsQuery, (snapshot) => {
@@ -350,23 +349,32 @@ const DriverDashboard = () => {
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div>
+                        <span className={`text-[10px] uppercase font-black px-2 py-1 rounded-full mb-2 inline-block ${
+                          request.status === 'accepted' ? 'bg-emerald-500/20 text-emerald-400' :
+                          request.status === 'pending' ? 'bg-amber-500/20 text-amber-400' :
+                          'bg-red-500/20 text-red-400'
+                        }`}>
+                          {request.status}
+                        </span>
                         <p className="font-bold">{request.passengerName}</p>
                         <p className="text-xs text-slate-400">Requesting {request.seats} seats</p>
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleRequest(request.id, 'reject', request.rideId, request.seats)}
-                          className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg transition-colors"
-                        >
-                          <X size={18} />
-                        </button>
-                        <button
-                          onClick={() => handleRequest(request.id, 'accept', request.rideId, request.seats)}
-                          className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 rounded-lg transition-colors"
-                        >
-                          <Check size={18} />
-                        </button>
-                      </div>
+                      {request.status === 'pending' && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleRequest(request.id, 'reject', request.rideId, request.seats)}
+                            className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg transition-colors"
+                          >
+                            <X size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleRequest(request.id, 'accept', request.rideId, request.seats)}
+                            className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 rounded-lg transition-colors"
+                          >
+                            <Check size={18} />
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <div className="text-sm text-slate-300 bg-black/20 p-2 rounded">
                       <p>From: {request.from}</p>
