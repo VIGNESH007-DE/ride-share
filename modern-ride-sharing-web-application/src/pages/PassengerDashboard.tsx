@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -94,6 +94,15 @@ const PassengerDashboard = () => {
       toast.error(error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCancelBooking = async (bookingId: string) => {
+    try {
+      await updateDoc(doc(db, 'bookings', bookingId), { status: 'cancelled' });
+      toast.success('Booking cancelled successfully');
+    } catch (error: any) {
+      toast.error('Failed to cancel booking: ' + error.message);
     }
   };
 
@@ -259,7 +268,17 @@ const PassengerDashboard = () => {
                       }`}>
                         {booking.status}
                       </span>
-                      <p className="text-xs text-indigo-300/50">₹{booking.price}</p>
+                      <div className="flex items-center gap-3">
+                        <p className="text-xs text-indigo-300/50">₹{booking.price}</p>
+                        {(booking.status === 'pending' || booking.status === 'accepted') && (
+                          <button
+                            onClick={() => handleCancelBooking(booking.id)}
+                            className="bg-red-500/10 text-red-400 hover:bg-red-500/20 px-3 py-1 rounded-full text-xs font-bold transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-2 mb-4">
                       <p className="text-sm font-bold">{booking.from} to {booking.to}</p>

@@ -116,6 +116,18 @@ const DriverDashboard = () => {
     }
   };
 
+  const handleUpdateRideStatus = async (rideId: string, status: 'cancelled' | 'finished') => {
+    setLoading(true);
+    try {
+      await updateDoc(doc(db, 'rides', rideId), { status });
+      toast.success(`Ride ${status} successfully!`);
+    } catch (error: any) {
+      toast.error(`Failed to update ride: ` + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       {/* Navbar */}
@@ -283,14 +295,32 @@ const DriverDashboard = () => {
                         <span className="text-sm text-slate-400">{ride.route}</span>
                       </div>
                     </div>
-                    <div className="flex justify-between items-center pt-4 border-t border-white/5">
-                      <div className="flex items-center gap-1 text-emerald-400 font-bold">
-                        <IndianRupee size={14} />
-                        {ride.price}
+                    <div className="flex flex-col gap-3 pt-4 border-t border-white/5">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-1 text-emerald-400 font-bold">
+                          <IndianRupee size={14} />
+                          {ride.price}
+                        </div>
+                        <div className="flex items-center gap-1 text-slate-400 text-sm">
+                          <Users size={14} />
+                          {ride.availableSeats} seats left
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1 text-slate-400 text-sm">
-                        <Users size={14} />
-                        {ride.availableSeats} seats left
+                      <div className="flex gap-2 w-full pt-2">
+                        <button
+                          onClick={() => handleUpdateRideStatus(ride.id, 'cancelled')}
+                          disabled={loading}
+                          className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-1"
+                        >
+                          <X size={14} /> Cancel Ride
+                        </button>
+                        <button
+                          onClick={() => handleUpdateRideStatus(ride.id, 'finished')}
+                          disabled={loading}
+                          className="flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-1"
+                        >
+                          <Check size={14} /> Finish Ride
+                        </button>
                       </div>
                     </div>
                   </motion.div>
