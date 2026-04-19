@@ -267,8 +267,9 @@ const DriverDashboard = () => {
                 No active rides. Create one to start!
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {myRides.map(ride => (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {myRides.map(ride => (
                   <motion.div
                     layout
                     key={ride.id}
@@ -339,6 +340,7 @@ const DriverDashboard = () => {
                   <span className="font-bold">Create Another Ride</span>
                 </button>
               )}
+              </>
             )}
           </div>
 

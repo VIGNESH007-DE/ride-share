@@ -16,8 +16,6 @@ const PassengerDashboard = () => {
   const [to, setTo] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const [hasSearched, setHasSearched] = useState(false);
-
   useEffect(() => {
     // Fetch passenger's bookings
     if (userData?.uid) {
@@ -42,7 +40,6 @@ const PassengerDashboard = () => {
     if (!from || !to) return;
     
     setLoading(true);
-    setHasSearched(true);
     try {
       const q = query(
         collection(db, 'rides'),
