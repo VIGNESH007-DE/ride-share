@@ -104,8 +104,9 @@ const PassengerDashboard = () => {
         const rideRef = doc(db, 'rides', booking.rideId);
         const rideSnap = await getDoc(rideRef);
         if (rideSnap.exists()) {
-           const currentSeats = rideSnap.data().availableSeats;
-           await updateDoc(rideRef, { availableSeats: currentSeats + booking.seats });
+           const currentSeats = Number(rideSnap.data().availableSeats) || 0;
+           const bookedSeats = Number(booking.seats) || 1;
+           await updateDoc(rideRef, { availableSeats: currentSeats + bookedSeats });
         }
       }
 

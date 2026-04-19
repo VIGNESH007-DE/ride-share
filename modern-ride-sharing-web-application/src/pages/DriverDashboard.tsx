@@ -113,9 +113,10 @@ const DriverDashboard = () => {
       } else if (action === 'cancel') {
         const rideSnap = await getDoc(rideRef);
         if (rideSnap.exists()) {
-          const currentSeats = rideSnap.data().availableSeats;
+          const currentSeats = Number(rideSnap.data().availableSeats) || 0;
+          const bookedSeats = Number(seatCount) || 1;
           await updateDoc(rideRef, {
-            availableSeats: currentSeats + seatCount
+            availableSeats: currentSeats + bookedSeats
           });
           await updateDoc(requestRef, { status: 'driver_cancelled' });
           toast.success('Accepted booking cancelled successfully');
