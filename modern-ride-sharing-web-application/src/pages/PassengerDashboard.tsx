@@ -98,8 +98,7 @@ const PassengerDashboard = () => {
 
   const handleCancelBooking = async (booking: any) => {
     try {
-      await updateDoc(doc(db, 'bookings', booking.id), { status: 'cancelled' });
-      
+      // Re-add seats BEFORE marking cancelled to guarantee execution
       if (booking.status === 'accepted') {
         const rideRef = doc(db, 'rides', booking.rideId);
         const rideSnap = await getDoc(rideRef);
@@ -109,6 +108,8 @@ const PassengerDashboard = () => {
            await updateDoc(rideRef, { availableSeats: currentSeats + bookedSeats });
         }
       }
+      
+      await updateDoc(doc(db, 'bookings', booking.id), { status: 'cancelled' });
 
       toast.success('Booking cancelled successfully');
     } catch (error: any) {
