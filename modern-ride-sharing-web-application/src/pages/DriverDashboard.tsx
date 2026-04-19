@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc, query, where, onSnapshot, updateDoc, doc, serverTimestamp, getDoc, getDocs, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, updateDoc, doc, serverTimestamp, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -88,7 +88,7 @@ const DriverDashboard = () => {
     }
   };
 
-  const handleRequest = async (requestId: string, action: 'accept' | 'reject', rideId: string, seatCount: number) => {
+  const handleRequest = async (requestId: string, action: 'accept' | 'reject' | 'cancel', rideId: string, seatCount: number) => {
     try {
       const requestRef = doc(db, 'bookings', requestId);
       const rideRef = doc(db, 'rides', rideId);
@@ -109,6 +109,16 @@ const DriverDashboard = () => {
             driverContact: userData?.phone || 'Not available'
           });
           toast.success('Request accepted!');
+        }
+      } else if (action === 'cancel') {
+        const rideSnap = await getDoc(rideRef);
+        if (rideSnap.exists()) {
+          const currentSeats = rideSnap.data().availableSeats;
+          await updateDoc(rideRef, {
+            availableSeats: currentSeats + seatCount
+          });
+          await updateDoc(requestRef, { status: 'driver_cancelled' });
+          toast.success('Accepted booking cancelled successfully');
         }
       } else {
         await updateDoc(requestRef, { status: 'rejected' });
@@ -444,6 +454,14 @@ const DriverDashboard = () => {
                             <Check size={18} />
                           </button>
                         </div>
+                      )}
+                      {request.status === 'accepted' && (
+                        <button
+                          onClick={() => handleRequest(request.id, 'cancel', request.rideId, request.seats)}
+                          className="px-3 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold rounded-full transition-colors"
+                        >
+                          Cancel
+                        </button>
                       )}
                     </div>
                     <div className="text-sm text-slate-300 bg-black/20 p-2 rounded">
