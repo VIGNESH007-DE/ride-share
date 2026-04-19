@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,18 +16,9 @@ const PassengerDashboard = () => {
   const [to, setTo] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [hasSearched, setHasSearched] = useState(false);
+
   useEffect(() => {
-    // Fetch all active rides
-    const ridesQuery = query(
-      collection(db, 'rides'),
-      where('status', '==', 'active')
-    );
-
-    const unsubscribeRides = onSnapshot(ridesQuery, (snapshot) => {
-      const ridesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setRides(ridesData);
-    });
-
     // Fetch passenger's bookings
     if (userData?.uid) {
       const bookingsQuery = query(
@@ -41,13 +32,41 @@ const PassengerDashboard = () => {
       });
 
       return () => {
-        unsubscribeRides();
         unsubscribeBookings();
       };
     }
-
-    return () => unsubscribeRides();
   }, [userData?.uid]);
+
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!from || !to) return;
+    
+    setLoading(true);
+    setHasSearched(true);
+    try {
+      const q = query(
+        collection(db, 'rides'),
+        where('from', '==', from),
+        where('to', '==', to),
+        where('status', '==', 'active')
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const results: any[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.availableSeats > 0) {
+           results.push({ id: doc.id, ...data });
+        }
+      });
+      
+      setRides(results);
+    } catch (error: any) {
+      toast.error('Search failed: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleBook = async (ride: any) => {
     if (ride.availableSeats <= 0) {
@@ -78,11 +97,8 @@ const PassengerDashboard = () => {
     }
   };
 
-  const filteredRides = rides.filter(ride => {
-    const matchFrom = from ? ride.from.toLowerCase().includes(from.toLowerCase()) : true;
-    const matchTo = to ? ride.to.toLowerCase().includes(to.toLowerCase()) : true;
-    return matchFrom && matchTo && ride.availableSeats > 0;
-  });
+  // Filtered locally if needed, but we already query strictly for active, from, and to available
+  const filteredRides = rides;
 
   return (
     <div className="min-h-screen bg-indigo-950 text-white">
@@ -112,30 +128,39 @@ const PassengerDashboard = () => {
         {/* Search Header */}
         <section className="bg-indigo-900/40 border border-white/10 rounded-3xl p-8 mb-12 shadow-2xl backdrop-blur-sm">
           <h2 className="text-3xl font-bold mb-6 text-center">Where are you going?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            <div className="relative group">
-              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400 group-focus-within:text-white transition-colors" size={20} />
-              <select
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                className="w-full bg-white/10 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white focus:ring-2 focus:ring-indigo-400 focus:outline-none transition-all appearance-none"
-              >
-                <option value="" className="bg-indigo-950">Pick up from</option>
-                {TAMIL_NADU_DISTRICTS.map(d => <option key={d} value={d} className="bg-indigo-950">{d}</option>)}
-              </select>
+          <form onSubmit={handleSearch} className="flex flex-col gap-6 max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="relative group">
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400 group-focus-within:text-white transition-colors" size={20} />
+                <select
+                  value={from}
+                  onChange={(e) => setFrom(e.target.value)}
+                  className="w-full bg-white/10 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white focus:ring-2 focus:ring-indigo-400 focus:outline-none transition-all appearance-none"
+                >
+                  <option value="" className="bg-indigo-950">Pick up from</option>
+                  {TAMIL_NADU_DISTRICTS.map(d => <option key={d} value={d} className="bg-indigo-950">{d}</option>)}
+                </select>
+              </div>
+              <div className="relative group">
+                <Navigation className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400 group-focus-within:text-white transition-colors" size={20} />
+                <select
+                  value={to}
+                  onChange={(e) => setTo(e.target.value)}
+                  className="w-full bg-white/10 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white focus:ring-2 focus:ring-indigo-400 focus:outline-none transition-all appearance-none"
+                >
+                  <option value="" className="bg-indigo-950">Destination to</option>
+                  {TAMIL_NADU_DISTRICTS.map(d => <option key={d} value={d} className="bg-indigo-950">{d}</option>)}
+                </select>
+              </div>
             </div>
-            <div className="relative group">
-              <Navigation className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400 group-focus-within:text-white transition-colors" size={20} />
-              <select
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                className="w-full bg-white/10 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white focus:ring-2 focus:ring-indigo-400 focus:outline-none transition-all appearance-none"
-              >
-                <option value="" className="bg-indigo-950">Destination to</option>
-                {TAMIL_NADU_DISTRICTS.map(d => <option key={d} value={d} className="bg-indigo-950">{d}</option>)}
-              </select>
-            </div>
-          </div>
+            <button
+              type="submit"
+              disabled={loading || !from || !to}
+              className="w-full md:w-auto self-center bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.02] text-white py-3 px-8 rounded-2xl font-bold transition-all duration-300 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20"
+            >
+              {loading ? 'Searching...' : 'Search Ride'}
+            </button>
+          </form>
         </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">

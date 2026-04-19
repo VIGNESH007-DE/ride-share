@@ -232,10 +232,10 @@ const DriverDashboard = () => {
                   <div className="h-full flex items-end">
                     <button
                       type="submit"
-                      disabled={loading}
-                      className="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2"
+                      disabled={loading || !from || !to || !route || !price || !seats}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.02] py-3 rounded-lg font-bold transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
                     >
-                      {loading ? 'Publishing...' : 'Confirm & Publish Ride'}
+                      {loading ? 'Publishing...' : 'Publish Ride'}
                     </button>
                   </div>
                 </div>
