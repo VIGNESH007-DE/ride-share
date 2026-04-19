@@ -25,7 +25,9 @@ const PassengerDashboard = () => {
       );
 
       const unsubscribeBookings = onSnapshot(bookingsQuery, (snapshot) => {
-        const bookingsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const bookingsData = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter((data: any) => data.deletedByPassenger !== true);
         setMyBookings(bookingsData);
       });
 
@@ -118,12 +120,14 @@ const PassengerDashboard = () => {
     try {
       const q = query(collection(db, 'bookings'), where('passengerId', '==', userData.uid));
       const snap = await getDocs(q);
-      snap.forEach(async (docSnap) => {
+      const promises: Promise<void>[] = [];
+      snap.forEach((docSnap) => {
          const st = docSnap.data().status;
          if (st === 'cancelled' || st === 'driver_cancelled' || st === 'rejected' || st === 'finished') {
-           await deleteDoc(docSnap.ref);
+           promises.push(updateDoc(docSnap.ref, { deletedByPassenger: true }));
          }
       });
+      await Promise.all(promises);
       toast.success('History cleared successfully');
     } catch (error: any) {
       toast.error('Failed to clear history: ' + error.message);

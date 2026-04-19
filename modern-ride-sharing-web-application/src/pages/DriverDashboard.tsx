@@ -31,7 +31,9 @@ const DriverDashboard = () => {
     );
 
     const unsubscribeRides = onSnapshot(ridesQuery, (snapshot) => {
-      const ridesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const ridesData = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((data: any) => data.deletedByDriver !== true);
       setMyRides(ridesData);
     });
 
@@ -42,7 +44,9 @@ const DriverDashboard = () => {
     );
 
     const unsubscribeRequests = onSnapshot(requestsQuery, (snapshot) => {
-      const requestsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const requestsData = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((data: any) => data.deletedByDriver !== true);
       setBookingRequests(requestsData);
     });
 
@@ -144,21 +148,25 @@ const DriverDashboard = () => {
     try {
        const bQuery = query(collection(db, 'bookings'), where('driverId', '==', userData.uid));
        const bSnap = await getDocs(bQuery);
-       bSnap.forEach(async (d) => {
+       const bPromises: Promise<void>[] = [];
+       bSnap.forEach((d) => {
           const st = d.data().status;
           if (st === 'cancelled' || st === 'driver_cancelled' || st === 'rejected' || st === 'finished') {
-             await deleteDoc(d.ref);
+             bPromises.push(updateDoc(d.ref, { deletedByDriver: true }));
           }
        });
+       await Promise.all(bPromises);
        
        const rQuery = query(collection(db, 'rides'), where('driverId', '==', userData.uid));
        const rSnap = await getDocs(rQuery);
-       rSnap.forEach(async (d) => {
+       const rPromises: Promise<void>[] = [];
+       rSnap.forEach((d) => {
           const st = d.data().status;
           if (st === 'cancelled' || st === 'finished') {
-             await deleteDoc(d.ref);
+             rPromises.push(updateDoc(d.ref, { deletedByDriver: true }));
           }
        });
+       await Promise.all(rPromises);
        toast.success('History cleared successfully');
     } catch (error: any) {
        toast.error('Failed to clear history: ' + error.message);
