@@ -432,9 +432,12 @@ const DriverDashboard = () => {
                         <span className={`text-[10px] uppercase font-black px-2 py-1 rounded-full mb-2 inline-block ${
                           request.status === 'accepted' ? 'bg-emerald-500/20 text-emerald-400' :
                           request.status === 'pending' ? 'bg-amber-500/20 text-amber-400' :
+                          request.status === 'driver_cancelled' ? 'bg-red-500/40 text-red-200' :
                           'bg-red-500/20 text-red-400'
                         }`}>
-                          {request.status}
+                          {request.status === 'cancelled' ? 'Passenger Cancelled' : 
+                           request.status === 'driver_cancelled' ? 'You Cancelled' : 
+                           request.status}
                         </span>
                         <p className="font-bold">{request.passengerName}</p>
                         <p className="text-xs text-slate-400">Requesting {request.seats} seats</p>
