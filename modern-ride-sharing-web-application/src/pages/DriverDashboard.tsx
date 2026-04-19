@@ -263,7 +263,7 @@ const DriverDashboard = () => {
                     />
                   </div>
                 </div>
-                <div className="space-y-4">
+                <div className="flex flex-col h-full">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-slate-400 mb-1">Price per Seat</label>
@@ -294,7 +294,7 @@ const DriverDashboard = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="h-full flex items-end">
+                  <div className="mt-auto pt-6">
                     <button
                       type="submit"
                       disabled={loading || !from || !to || !route || !price || !seats}
