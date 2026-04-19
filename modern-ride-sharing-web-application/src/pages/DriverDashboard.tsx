@@ -70,7 +70,7 @@ const DriverDashboard = () => {
         status: 'active',
         createdAt: serverTimestamp(),
       });
-      toast.success('Ride published successfully!');
+      toast.success('Ride created successfully!');
       setShowForm(false);
       setFrom('');
       setTo('');
@@ -159,7 +159,7 @@ const DriverDashboard = () => {
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20"
           >
             {showForm ? <X size={20} /> : <Plus size={20} />}
-            {showForm ? 'Cancel' : 'Publish Ride'}
+            {showForm ? 'Cancel' : 'Create Ride'}
           </button>
         </div>
 
@@ -246,7 +246,7 @@ const DriverDashboard = () => {
                       disabled={loading || !from || !to || !route || !price || !seats}
                       className="w-full bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.02] py-3 rounded-lg font-bold transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
                     >
-                      {loading ? 'Publishing...' : 'Publish Ride'}
+                      {loading ? 'Creating...' : 'Create Ride'}
                     </button>
                   </div>
                 </div>
@@ -264,7 +264,7 @@ const DriverDashboard = () => {
             </h3>
             {myRides.length === 0 ? (
               <div className="bg-slate-900/50 border border-white/5 rounded-2xl p-12 text-center text-slate-500">
-                No active rides. Publish one to start!
+                No active rides. Create one to start!
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
