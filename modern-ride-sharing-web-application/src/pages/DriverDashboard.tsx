@@ -1,0 +1,356 @@
+import React, { useState, useEffect } from 'react';
+import { collection, addDoc, query, where, onSnapshot, updateDoc, doc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { useAuth } from '../contexts/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Car, MapPin, Navigation, IndianRupee, Users, Check, X, LogOut, Clock } from 'lucide-react';
+import { TAMIL_NADU_DISTRICTS } from '../constants/districts';
+import toast from 'react-hot-toast';
+import { auth } from '../lib/firebase';
+
+const DriverDashboard = () => {
+  const { userData } = useAuth();
+  const [showForm, setShowForm] = useState(false);
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [route, setRoute] = useState('');
+  const [price, setPrice] = useState('');
+  const [seats, setSeats] = useState('');
+  const [myRides, setMyRides] = useState<any[]>([]);
+  const [bookingRequests, setBookingRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!userData?.uid) return;
+
+    // Fetch active rides by this driver
+    const ridesQuery = query(
+      collection(db, 'rides'),
+      where('driverId', '==', userData.uid),
+      where('status', '==', 'active')
+    );
+
+    const unsubscribeRides = onSnapshot(ridesQuery, (snapshot) => {
+      const ridesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setMyRides(ridesData);
+    });
+
+    // Fetch booking requests for this driver's rides
+    const requestsQuery = query(
+      collection(db, 'bookings'),
+      where('driverId', '==', userData.uid),
+      where('status', '==', 'pending')
+    );
+
+    const unsubscribeRequests = onSnapshot(requestsQuery, (snapshot) => {
+      const requestsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setBookingRequests(requestsData);
+    });
+
+    return () => {
+      unsubscribeRides();
+      unsubscribeRequests();
+    };
+  }, [userData?.uid]);
+
+  const handlePublish = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await addDoc(collection(db, 'rides'), {
+        driverId: userData?.uid,
+        driverName: userData?.name,
+        vehicleNo: userData?.vehicleNo,
+        vehicleType: userData?.vehicleType,
+        from,
+        to,
+        route,
+        price: Number(price),
+        availableSeats: Number(seats),
+        totalSeats: Number(seats),
+        status: 'active',
+        createdAt: serverTimestamp(),
+      });
+      toast.success('Ride published successfully!');
+      setShowForm(false);
+      setFrom('');
+      setTo('');
+      setRoute('');
+      setPrice('');
+      setSeats('');
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRequest = async (requestId: string, action: 'accept' | 'reject', rideId: string, seatCount: number) => {
+    try {
+      const requestRef = doc(db, 'bookings', requestId);
+      const rideRef = doc(db, 'rides', rideId);
+      
+      if (action === 'accept') {
+        const rideSnap = await getDoc(rideRef);
+        if (rideSnap.exists()) {
+          const currentSeats = rideSnap.data().availableSeats;
+          if (currentSeats < seatCount) {
+            toast.error('Not enough seats available!');
+            return;
+          }
+          await updateDoc(rideRef, {
+            availableSeats: currentSeats - seatCount
+          });
+          await updateDoc(requestRef, { 
+            status: 'accepted',
+            driverContact: userData?.phone || 'Not available'
+          });
+          toast.success('Request accepted!');
+        }
+      } else {
+        await updateDoc(requestRef, { status: 'rejected' });
+        toast.error('Request rejected');
+      }
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white">
+      {/* Navbar */}
+      <nav className="border-b border-white/10 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Car className="text-indigo-500" />
+            <span className="font-bold text-xl tracking-tight">Driver Dashboard</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-medium">{userData?.name}</p>
+              <p className="text-xs text-slate-400">{userData?.vehicleNo}</p>
+            </div>
+            <button 
+              onClick={() => auth.signOut()}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white"
+            >
+              <LogOut size={20} />
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-6xl mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-2xl font-bold">Manage Your Rides</h2>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20"
+          >
+            {showForm ? <X size={20} /> : <Plus size={20} />}
+            {showForm ? 'Cancel' : 'Publish Ride'}
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {showForm && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden mb-8"
+            >
+              <form onSubmit={handlePublish} className="bg-slate-900 border border-white/10 rounded-2xl p-6 grid grid-cols-1 md:grid-cols-2 gap-6 shadow-xl">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1">From</label>
+                    <select
+                      value={from}
+                      onChange={(e) => setFrom(e.target.value)}
+                      className="w-full bg-slate-800 border border-white/10 rounded-lg py-2 px-4 focus:ring-2 focus:ring-indigo-500"
+                      required
+                    >
+                      <option value="">Select Origin</option>
+                      {TAMIL_NADU_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1">To</label>
+                    <select
+                      value={to}
+                      onChange={(e) => setTo(e.target.value)}
+                      className="w-full bg-slate-800 border border-white/10 rounded-lg py-2 px-4 focus:ring-2 focus:ring-indigo-500"
+                      required
+                    >
+                      <option value="">Select Destination</option>
+                      {TAMIL_NADU_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1">Route (e.g. Via OMR)</label>
+                    <input
+                      type="text"
+                      value={route}
+                      onChange={(e) => setRoute(e.target.value)}
+                      className="w-full bg-slate-800 border border-white/10 rounded-lg py-2 px-4 focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Enter major waypoints"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1">Price per Seat</label>
+                      <div className="relative">
+                        <IndianRupee className="absolute left-3 top-3 text-slate-500" size={16} />
+                        <input
+                          type="number"
+                          value={price}
+                          onChange={(e) => setPrice(e.target.value)}
+                          className="w-full bg-slate-800 border border-white/10 rounded-lg py-2 pl-10 pr-4 focus:ring-2 focus:ring-indigo-500"
+                          placeholder="0"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1">Total Seats</label>
+                      <div className="relative">
+                        <Users className="absolute left-3 top-3 text-slate-500" size={16} />
+                        <input
+                          type="number"
+                          value={seats}
+                          onChange={(e) => setSeats(e.target.value)}
+                          className="w-full bg-slate-800 border border-white/10 rounded-lg py-2 pl-10 pr-4 focus:ring-2 focus:ring-indigo-500"
+                          placeholder="4"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="h-full flex items-end">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2"
+                    >
+                      {loading ? 'Publishing...' : 'Confirm & Publish Ride'}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Active Rides List */}
+          <div className="lg:col-span-2 space-y-6">
+            <h3 className="text-xl font-semibold flex items-center gap-2">
+              <Navigation className="text-indigo-400" size={20} />
+              Active Rides
+            </h3>
+            {myRides.length === 0 ? (
+              <div className="bg-slate-900/50 border border-white/5 rounded-2xl p-12 text-center text-slate-500">
+                No active rides. Publish one to start!
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {myRides.map(ride => (
+                  <motion.div
+                    layout
+                    key={ride.id}
+                    className="bg-slate-900 border border-white/10 rounded-2xl p-5 hover:border-indigo-500/50 transition-all group"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="bg-indigo-500/10 p-2 rounded-lg group-hover:bg-indigo-500/20 transition-colors">
+                        <Car className="text-indigo-400" size={24} />
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-indigo-400 uppercase bg-indigo-500/10 px-2 py-1 rounded">
+                          {ride.status}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-3 mb-4">
+                      <div className="flex items-center gap-3">
+                        <MapPin size={16} className="text-slate-500" />
+                        <span className="font-medium">{ride.from} → {ride.to}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Navigation size={16} className="text-slate-500" />
+                        <span className="text-sm text-slate-400">{ride.route}</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center pt-4 border-t border-white/5">
+                      <div className="flex items-center gap-1 text-emerald-400 font-bold">
+                        <IndianRupee size={14} />
+                        {ride.price}
+                      </div>
+                      <div className="flex items-center gap-1 text-slate-400 text-sm">
+                        <Users size={14} />
+                        {ride.availableSeats} seats left
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Booking Requests */}
+          <div className="space-y-6">
+            <h3 className="text-xl font-semibold flex items-center gap-2">
+              <Clock className="text-amber-400" size={20} />
+              Pending Requests
+            </h3>
+            <div className="space-y-4">
+              {bookingRequests.length === 0 ? (
+                <div className="bg-slate-900/50 border border-white/5 rounded-2xl p-8 text-center text-slate-500">
+                  No new requests
+                </div>
+              ) : (
+                bookingRequests.map(request => (
+                  <motion.div
+                    initial={{ x: 20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    key={request.id}
+                    className="bg-slate-900 border border-white/10 rounded-2xl p-4 shadow-lg"
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <p className="font-bold">{request.passengerName}</p>
+                        <p className="text-xs text-slate-400">Requesting {request.seats} seats</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleRequest(request.id, 'reject', request.rideId, request.seats)}
+                          className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg transition-colors"
+                        >
+                          <X size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleRequest(request.id, 'accept', request.rideId, request.seats)}
+                          className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 rounded-lg transition-colors"
+                        >
+                          <Check size={18} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="text-sm text-slate-300 bg-black/20 p-2 rounded">
+                      <p>From: {request.from}</p>
+                      <p>To: {request.to}</p>
+                    </div>
+                  </motion.div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default DriverDashboard;
