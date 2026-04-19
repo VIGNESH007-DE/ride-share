@@ -325,6 +325,20 @@ const DriverDashboard = () => {
                   </motion.div>
                 ))}
               </div>
+              {!showForm && (
+                <button
+                  onClick={() => {
+                    setShowForm(true);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="w-full bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border-2 border-indigo-500/30 border-dashed hover:border-indigo-500 py-6 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all duration-300 group mt-6"
+                >
+                  <div className="bg-indigo-500/20 p-3 rounded-full group-hover:scale-110 group-hover:bg-indigo-500/40 transition-all">
+                    <Plus size={24} />
+                  </div>
+                  <span className="font-bold">Create Another Ride</span>
+                </button>
+              )}
             )}
           </div>
 
